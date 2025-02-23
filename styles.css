@@ -201,11 +201,16 @@ header {
 /* Login Container Styles */
 #loginContainer {
     text-align: center;
-    padding: 50px 20px;
+    padding: 100px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 #loginContainer h1 {
-    font-size: 2.5em;
+    font-size: 3em;
     margin-bottom: 30px;
     color: #1976D2;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
@@ -700,4 +705,16 @@ header {
 .copy-success {
     animation: copySuccess 0.3s ease;
     color: #4CAF50;
+}
+
+/* Google Sign In Button Styles */
+.g_id_signin {
+    display: none;
+}
+
+#g_id_onload {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
 } 

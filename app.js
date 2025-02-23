@@ -38,9 +38,7 @@ const enterReferralCode = document.getElementById('enterReferralCode');
 const applyReferralBtn = document.getElementById('applyReferralBtn');
 
 // Event Listeners
-loginButton.addEventListener('click', handleLogin);
 logoutButton.addEventListener('click', handleLogout);
-modalLoginButton.addEventListener('click', handleLogin);
 closeModalButtons.forEach(button => {
     button.addEventListener('click', () => {
         loginPromptModal.classList.add('hidden');
@@ -258,38 +256,22 @@ function checkWithdrawalEligibility() {
     }
 }
 
-// Add this function to show/hide Google One Tap
-function handleGoogleOneTap() {
-    if (!currentUser) {
-        // Initialize Google One Tap
-        google.accounts.id.initialize({
-            client_id: '253948026142-4tggh9her6e1pj9l9mkjp1ds684eg3as.apps.googleusercontent.com',
-            callback: handleGoogleOneTapSignIn,
-            auto_select: true,
-            cancel_on_tap_outside: false
-        });
-
-        // Display the One Tap dialog
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // If One Tap is not displayed or skipped, show the normal sign-in button
-                document.querySelector('.g_id_signin').style.display = 'block';
-            }
-        });
-    } else {
-        // Hide One Tap if user is already signed in
-        google.accounts.id.cancel();
-        document.querySelector('.g_id_signin').style.display = 'none';
-    }
-}
-
 // Update the Google One Tap Sign In Handler
 async function handleGoogleOneTapSignIn(response) {
     try {
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        // First, get the ID token from the response
+        const idToken = response.credential;
+        
+        // Sign in with Supabase using the Google token
+        const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
-            token: response.credential,
-            nonce: 'NONCE', // Replace with a secure nonce if needed
+            options: {
+                idToken,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                }
+            }
         });
 
         if (error) throw error;
@@ -297,10 +279,42 @@ async function handleGoogleOneTapSignIn(response) {
         // Hide the One Tap UI after successful sign-in
         google.accounts.id.cancel();
         
-        // The auth state change listener will handle the rest
     } catch (error) {
-        console.error('Error with One Tap sign in:', error.message);
+        console.error('Error with One Tap sign in:', error);
         alert('Failed to sign in. Please try again.');
+    }
+}
+
+// Update handleGoogleOneTap function to handle initial login state
+function handleGoogleOneTap() {
+    if (!currentUser) {
+        // Show login container
+        loginContainer.classList.remove('hidden');
+        dashboardContainer.classList.add('hidden');
+
+        // Initialize Google One Tap with more options
+        google.accounts.id.initialize({
+            client_id: '253948026142-4tggh9her6e1pj9l9mkjp1ds684eg3as.apps.googleusercontent.com',
+            callback: handleGoogleOneTapSignIn,
+            auto_select: true,
+            cancel_on_tap_outside: false,
+            context: 'signin',
+            ux_mode: 'popup',
+        });
+
+        // Display the One Tap dialog
+        google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed()) {
+                console.log('One Tap not displayed:', notification.getNotDisplayedReason());
+            } else if (notification.isSkippedMoment()) {
+                console.log('One Tap skipped:', notification.getSkippedReason());
+            }
+        });
+    } else {
+        // Show dashboard if user is already signed in
+        loginContainer.classList.add('hidden');
+        dashboardContainer.classList.remove('hidden');
+        google.accounts.id.cancel();
     }
 }
 
@@ -348,15 +362,15 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             referralEntry.classList.remove('hidden');
         }
 
-        // Hide Google One Tap
+        // Hide Google One Tap and login container
         google.accounts.id.cancel();
-        document.querySelector('.g_id_signin').style.display = 'none';
+        loginContainer.classList.add('hidden');
+        dashboardContainer.classList.remove('hidden');
     } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         userPoints = 0;
-        showLoginScreen();
-
-        // Show Google One Tap
+        
+        // Show Google One Tap and login container
         handleGoogleOneTap();
     }
 });
